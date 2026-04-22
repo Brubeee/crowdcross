@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrowdCross — Pedestrian Risk Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:     #0d0d0d;
+  --paper:   #f2ede4;
+  --yellow:  #f5c518;
+  --red:     #d93025;
+  --green:   #1a9e5c;
+  --orange:  #e8732a;
+  --blue:    #2a6ee8;
+  --grey1:   #1c1c1c;
+  --grey2:   #2e2e2e;
+  --grey3:   #444;
+  --muted:   #888;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--paper);color:var(--ink);font-family:'DM Mono',monospace;display:flex;flex-direction:column;}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 28px;background:var(--ink);flex-shrink:0;border-bottom:3px solid var(--yellow);}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:5px;color:var(--yellow);}
+.logo span{color:var(--paper);}
+.header-right{display:flex;align-items:center;gap:20px;}
+.csir-badge{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink);background:var(--yellow);padding:4px 10px;}
+.version-tag{font-size:0.6rem;color:var(--grey3);letter-spacing:1px;}
+
+.screen{display:none;flex:1;overflow:hidden;}
+.screen.active{display:flex;}
+
+/* START */
+#screen-start{background:var(--paper);align-items:stretch;}
+.start-split{display:grid;grid-template-columns:1fr 1fr;width:100%;}
+.start-l{padding:48px 52px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid #ccc7ba;}
+.start-l h1{font-family:'Instrument Serif',serif;font-size:clamp(2.4rem,4vw,3.6rem);line-height:1.05;color:var(--ink);margin-bottom:18px;}
+.start-l h1 em{font-style:italic;color:var(--red);display:block;}
+.start-l .sub{font-size:0.8rem;color:#666;line-height:1.7;max-width:380px;margin-bottom:28px;}
+.field-label{font-size:0.6rem;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+.chip{background:transparent;border:1px solid #bbb;color:#555;padding:8px 18px;font-family:'DM Mono',monospace;font-size:0.72rem;cursor:pointer;transition:all .15s;letter-spacing:1px;}
+.chip:hover{border-color:var(--ink);color:var(--ink);}
+.chip.on{background:var(--ink);color:var(--yellow);border-color:var(--ink);}
+.diff-row{display:flex;gap:8px;margin-bottom:32px;}
+.diff-chip{background:transparent;border:1px solid #bbb;color:#555;padding:8px 18px;font-family:'DM Mono',monospace;font-size:0.72rem;cursor:pointer;transition:all .15s;letter-spacing:1px;flex:1;text-align:center;}
+.diff-chip:hover{border-color:var(--ink);color:var(--ink);}
+.diff-chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.btn-go{align-self:flex-start;background:var(--ink);color:var(--yellow);border:none;padding:16px 44px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;cursor:pointer;transition:all .15s;}
+.btn-go:hover:not(:disabled){background:var(--yellow);color:var(--ink);transform:translateY(-2px);}
+.btn-go:disabled{background:#ccc;color:#999;cursor:not-allowed;}
+.start-r{padding:48px 52px;display:flex;flex-direction:column;justify-content:center;gap:20px;background:#eae5db;}
+.tip-card{border:1px solid #ccc7ba;background:var(--paper);padding:20px 22px;border-left:3px solid var(--yellow);}
+.tip-card h3{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--yellow);margin-bottom:8px;}
+.tip-card p{font-size:0.8rem;color:#666;line-height:1.6;}
+.tip-card .key{display:inline-block;background:var(--ink);color:var(--yellow);padding:2px 8px;font-size:0.7rem;margin-top:8px;}
+
+/* GAME */
+#screen-game{flex-direction:column;background:var(--ink);}
+.hud{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:#111;border-bottom:1px solid #222;flex-shrink:0;flex-wrap:wrap;gap:10px;}
+.hud-group{display:flex;align-items:center;gap:20px;}
+.hud-stat{text-align:center;}
+.hud-stat .v{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;line-height:1;}
+.hud-stat .l{font-size:0.55rem;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-top:1px;}
+.col-safe .v{color:var(--green);}
+.col-bad  .v{color:var(--red);}
+.col-yellow .v{color:var(--yellow);}
+.col-blue .v{color:#6ab0ff;}
+.dot-row{display:flex;gap:5px;align-items:center;}
+.dot{width:9px;height:9px;border-radius:50%;background:#2a2a2a;border:1px solid #3a3a3a;transition:all .3s;}
+.dot.safe{background:var(--green);border-color:var(--green);}
+.dot.collision{background:var(--red);border-color:var(--red);}
+.dot.cur{background:var(--yellow);border-color:var(--yellow);animation:blink .7s infinite alternate;}
+@keyframes blink{from{opacity:1}to{opacity:.3}}
+.canvas-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;position:relative;overflow:hidden;}
+#road-canvas{display:block;border:2px solid #222;max-width:100%;max-height:calc(100vh - 210px);}
+.ctrl-bar{display:flex;align-items:center;justify-content:center;gap:24px;padding:12px 24px;background:#111;border-top:1px solid #222;flex-shrink:0;}
+.inst-text{font-size:0.68rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:center;min-width:220px;}
+#btn-cross{background:var(--yellow);color:var(--ink);border:none;padding:14px 48px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;cursor:pointer;transition:all .12s;}
+#btn-cross:hover:not(:disabled){transform:scale(1.05);}
+#btn-cross:disabled{background:#2a2a2a;color:#555;cursor:not-allowed;}
+.kbd-hint{font-size:0.6rem;color:#444;letter-spacing:1px;}
+.flash{position:absolute;inset:0;pointer-events:none;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .1s;}
+.flash.show{opacity:1;}
+.flash-word{font-family:'Bebas Neue',sans-serif;font-size:5.5rem;letter-spacing:6px;text-shadow:0 0 60px currentColor;}
+.flash-sub{font-size:0.75rem;letter-spacing:2px;color:#fff;margin-top:4px;}
+.flash.ok  .flash-word{color:var(--green);}
+.flash.hit .flash-word{color:var(--red);}
+.coach{position:fixed;bottom:90px;right:20px;background:#1a1a1a;border:1px solid #333;border-left:3px solid var(--orange);padding:14px 18px;max-width:260px;z-index:99;transform:translateX(120%);transition:transform .4s cubic-bezier(.22,1,.36,1);}
+.coach.show{transform:translateX(0);}
+.coach-title{font-size:0.58rem;letter-spacing:2px;color:var(--orange);text-transform:uppercase;margin-bottom:6px;}
+.coach p{font-size:0.76rem;color:#bbb;line-height:1.55;}
+.coach-x{position:absolute;top:8px;right:12px;background:none;border:none;color:#555;cursor:pointer;font-size:.75rem;}
+
+/* LOOK METER */
+#look-meter-wrap{
+  position:absolute;bottom:70px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  z-index:20;pointer-events:none;transition:opacity .3s;opacity:0;
+}
+#look-meter-wrap.show{opacity:1;}
+.look-label{font-size:0.6rem;letter-spacing:2px;color:var(--yellow);text-transform:uppercase;}
+.look-bar-bg{width:180px;height:8px;background:#222;border:1px solid #444;border-radius:0;}
+.look-bar-fill{height:100%;width:0%;background:var(--yellow);transition:width 0.05s linear;}
+.look-bar-fill.ready{background:var(--green);}
+
+/* RESULTS */
+#screen-results{background:var(--paper);flex-direction:column;overflow-y:auto;}
+.res-inner{max-width:1080px;width:100%;margin:0 auto;padding:36px 40px 60px;}
+.res-head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:36px;}
+.res-head h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:clamp(2rem,4vw,3.2rem);color:var(--ink);line-height:1;}
+.res-head .meta{font-size:0.65rem;color:var(--muted);letter-spacing:1.5px;text-align:right;}
+.score-area{display:flex;align-items:center;gap:48px;margin-bottom:40px;flex-wrap:wrap;}
+.ring-wrap{position:relative;width:160px;height:160px;flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-num{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:2px;line-height:1;}
+.ring-lbl{font-size:0.55rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.verdict-block{max-width:360px;}
+.verdict-level{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:3px;margin-bottom:10px;}
+.verdict-text{font-size:0.83rem;color:#555;line-height:1.65;}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px;}
+.sc{border:1px solid #d0c9be;padding:20px 16px;text-align:center;border-top:3px solid var(--ink);}
+.sc .big{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:2px;line-height:1;margin-bottom:4px;}
+.sc .lbl{font-size:0.58rem;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;}
+.cbox{border:1px solid #d0c9be;padding:24px;}
+.cbox-title{font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--ink);margin-bottom:18px;}
+.bchart{display:flex;flex-direction:column;gap:10px;}
+.brow{display:flex;align-items:center;gap:10px;}
+.blbl{font-size:0.65rem;color:var(--muted);width:72px;text-align:right;flex-shrink:0;}
+.btrack{flex:1;height:24px;background:#ece7de;position:relative;overflow:hidden;}
+.bfill{height:100%;transition:width 1.1s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;padding-left:8px;}
+.bfill span{font-size:0.65rem;color:var(--paper);font-weight:500;}
+.tline{display:flex;flex-direction:column;gap:7px;}
+.trow{display:flex;align-items:center;gap:8px;}
+.tnum{font-size:0.6rem;color:var(--muted);width:22px;flex-shrink:0;}
+.ttrack{flex:1;height:18px;background:#ece7de;position:relative;}
+.tbar{height:100%;position:absolute;left:0;transition:width 1s ease;}
+.tval{font-size:0.62rem;width:52px;text-align:right;flex-shrink:0;}
+.table-wrap{border:1px solid #d0c9be;padding:24px;margin-bottom:28px;overflow-x:auto;}
+.table-wrap .cbox-title{margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:0.72rem;}
+thead th{text-align:left;padding:0 12px 10px;font-size:0.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid #d0c9be;}
+tbody tr{border-bottom:1px solid #ece7de;transition:background .1s;}
+tbody tr:hover{background:#ece7de;}
+tbody td{padding:9px 12px;color:#333;}
+.td-safe{color:var(--green);font-weight:500;}
+.td-col{color:var(--red);font-weight:500;}
+.td-warn{color:var(--orange);}
+.td-dk{color:var(--red);}
+.advice-box{border:1px solid #d0c9be;border-left:4px solid var(--ink);padding:24px;margin-bottom:32px;}
+.advice-box .cbox-title{margin-bottom:14px;}
+.advice-box ul{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.advice-box li{font-size:0.82rem;color:#555;line-height:1.6;padding-left:18px;position:relative;}
+.advice-box li::before{content:'→';position:absolute;left:0;color:var(--ink);}
+.res-actions{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-r{background:transparent;border:1px solid var(--ink);color:var(--ink);padding:12px 28px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;cursor:pointer;transition:all .15s;}
+.btn-r:hover{background:var(--ink);color:var(--yellow);}
+.btn-r.pri{background:var(--ink);color:var(--yellow);}
+.btn-r.pri:hover{background:var(--yellow);color:var(--ink);}
+@media(max-width:700px){
+  .start-split{grid-template-columns:1fr;}
+  .start-r{display:none;}
+  .stat-row{grid-template-columns:repeat(2,1fr);}
+  .charts-row{grid-template-columns:1fr;}
+  .res-inner{padding:20px 16px 40px;}
+}
+
+/* ── SAFETY POPUP ── */
+.popup-overlay{
+  position:fixed;inset:0;background:rgba(13,13,13,0.82);
+  z-index:200;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;
+}
+.popup-overlay.show{opacity:1;pointer-events:all;}
+.popup-box{
+  background:var(--paper);max-width:560px;width:90%;
+  border-top:5px solid var(--yellow);
+  padding:40px 44px 36px;
+  position:relative;
+  transform:translateY(24px);transition:transform .35s cubic-bezier(.22,1,.36,1);
+}
+.popup-overlay.show .popup-box{transform:translateY(0);}
+.popup-box h2{
+  font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:4px;
+  color:var(--ink);margin-bottom:6px;
+}
+.popup-box .popup-sub{
+  font-size:0.68rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:28px;
+}
+.popup-steps{display:flex;flex-direction:column;gap:0;}
+.popup-step{
+  display:flex;align-items:flex-start;gap:18px;
+  padding:18px 0;border-bottom:1px solid #ddd6c5;
+  opacity:0;transform:translateX(-12px);
+  transition:opacity .4s ease, transform .4s ease;
+}
+.popup-step:last-child{border-bottom:none;}
+.popup-step.visible{opacity:1;transform:translateX(0);}
+.step-icon{
+  width:40px;height:40px;flex-shrink:0;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;
+}
+.step-icon.left{ background:#fff3cd; }
+.step-icon.right{ background:#cce5ff; }
+.step-icon.check{ background:#d4edda; }
+.step-icon.wait{ background:#fde8d8; }
+.step-body h3{
+  font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;
+  color:var(--ink);margin-bottom:4px;
+}
+.step-body p{font-size:0.78rem;color:#666;line-height:1.55;}
+.popup-footer{
+  margin-top:28px;display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+}
+.popup-note{font-size:0.65rem;color:var(--muted);letter-spacing:1px;max-width:260px;line-height:1.5;}
+.btn-popup-go{
+  background:var(--ink);color:var(--yellow);border:none;
+  padding:14px 36px;font-family:'Bebas Neue',sans-serif;
+  font-size:1.3rem;letter-spacing:3px;cursor:pointer;transition:all .15s;
+}
+.btn-popup-go:hover{background:var(--yellow);color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Crowd<span>Cross</span></div>
+  <div class="header-right">
+    <span class="version-tag">v2.1 — REALISTIC MODE</span>
+    <span class="csir-badge">CSIR CIASC</span>
+  </div>
+</header>
+
+<!-- START -->
+<div id="screen-start" class="screen active">
+ <div class="start-split">
+  <div class="start-l">
+    <h1>Do You Know<br><em>When It's Safe</em><br>to Cross?</h1>
+    <p class="sub">Top-down road simulation. Traffic flows in <strong>both directions</strong> on every lane. You cross <strong>one lane at a time</strong> — wait on the <strong>median island</strong> between halves. You must <strong>look before you step</strong> — no rushing.</p>
+    <div class="field-label">Your Age Group</div>
+    <div class="chip-row" id="age-chips">
+      <button class="chip" data-v="child"  onclick="pick('age',this)">Child 8–12</button>
+      <button class="chip" data-v="teen"   onclick="pick('age',this)">Teen 13–17</button>
+      <button class="chip" data-v="adult"  onclick="pick('age',this)">Adult 18–40</button>
+      <button class="chip" data-v="senior" onclick="pick('age',this)">Senior 60+</button>
+    </div>
+    <div class="field-label">Traffic Difficulty</div>
+    <div class="diff-row" id="diff-chips">
+      <button class="diff-chip" data-v="easy"   onclick="pick('diff',this)">Easy</button>
+      <button class="diff-chip" data-v="medium" onclick="pick('diff',this)">Medium</button>
+      <button class="diff-chip on" data-v="hard" onclick="pick('diff',this)">Hard</button>
+    </div>
+    <button class="btn-go" id="btn-go" onclick="startGame()" disabled>Begin Simulation →</button>
+  </div>
+  <div class="start-r">
+    <div class="tip-card">
+      <h3>Top-Down View</h3>
+      <p>You see the road from above. Cars approach from the LEFT on some lanes and from the RIGHT on others — just like a real two-way road.</p>
+    </div>
+    <div class="tip-card">
+      <h3>Look Before You Step</h3>
+      <p>Hold SPACE (or the button) for a moment to scan traffic. The meter fills as you look. Only when it's green can you actually step forward.</p>
+      <div class="key">HOLD SPACE = Look → Step</div>
+    </div>
+    <div class="tip-card">
+      <h3>Median Island — Real Safe Zone</h3>
+      <p>After crossing the first half of lanes you reach a real median island. Cars cannot touch you there. Plan your second half crossing from safety.</p>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="hud">
+    <div class="hud-group">
+      <div class="hud-stat col-yellow"><div class="v" id="h-trial">1/10</div><div class="l">Trial</div></div>
+      <div class="dot-row" id="dot-row"></div>
+    </div>
+    <div class="hud-group">
+      <div class="hud-stat col-safe"><div class="v" id="h-safe">0</div><div class="l">Safe</div></div>
+      <div class="hud-stat col-bad"><div class="v" id="h-col">0</div><div class="l">Hits</div></div>
+      <div class="hud-stat col-blue"><div class="v" id="h-rt">—</div><div class="l">Last RT ms</div></div>
+      <div class="hud-stat col-yellow"><div class="v" id="h-lane">START</div><div class="l">Position</div></div>
+    </div>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="road-canvas"></canvas>
+    <div class="flash" id="flash">
+      <div class="flash-word" id="flash-word"></div>
+      <div class="flash-sub"  id="flash-sub"></div>
+    </div>
+    <!-- Look meter -->
+    <div id="look-meter-wrap">
+      <div class="look-label" id="look-label">SCANNING TRAFFIC...</div>
+      <div class="look-bar-bg"><div class="look-bar-fill" id="look-fill"></div></div>
+    </div>
+  </div>
+  <div class="ctrl-bar">
+    <div class="inst-text" id="inst">Watch traffic — hold SPACE or button to scan then step</div>
+    <div>
+      <button id="btn-cross"
+        onmousedown="startLook()" onmouseup="endLook()" ontouchstart="startLook()" ontouchend="endLook()">
+        HOLD TO LOOK
+      </button>
+      <div class="kbd-hint" style="text-align:center;margin-top:4px;">hold SPACE to look, release to step</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+ <div class="res-inner">
+  <div class="res-head">
+    <h2>Risk Assessment<br>Complete</h2>
+    <div class="meta" id="res-meta">—</div>
+  </div>
+  <div class="score-area">
+    <div class="ring-wrap">
+      <svg width="160" height="160" viewBox="0 0 160 160">
+        <circle cx="80" cy="80" r="64" fill="none" stroke="#e0d9ce" stroke-width="12"/>
+        <circle id="ring-arc" cx="80" cy="80" r="64" fill="none" stroke="#0d0d0d"
+          stroke-width="12" stroke-linecap="butt"
+          stroke-dasharray="402" stroke-dashoffset="402"
+          style="transition:stroke-dashoffset 1.4s cubic-bezier(.22,1,.36,1)"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-num" id="ring-n">0</div>
+        <div class="ring-lbl">Risk Score</div>
+      </div>
+    </div>
+    <div class="verdict-block">
+      <div class="verdict-level" id="v-level">—</div>
+      <div class="verdict-text" id="v-text">—</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="sc"><div class="big" id="r-safe">—</div><div class="lbl">Safe Crossings</div></div>
+    <div class="sc"><div class="big" id="r-col">—</div><div class="lbl">Collision Rate</div></div>
+    <div class="sc"><div class="big" id="r-rt">—</div><div class="lbl">Avg React ms</div></div>
+    <div class="sc"><div class="big" id="r-gap">—</div><div class="lbl">Avg Min Gap px</div></div>
+  </div>
+  <div class="charts-row">
+    <div class="cbox"><div class="cbox-title">Performance Breakdown</div><div class="bchart" id="bchart"></div></div>
+    <div class="cbox"><div class="cbox-title">Reaction Time per Trial</div><div class="tline" id="tline"></div></div>
+  </div>
+  <div class="table-wrap">
+    <div class="cbox-title">Raw Experimental Data — Session Log</div>
+    <table>
+      <thead><tr>
+        <th>Trial</th><th>Outcome</th><th>Lanes Cleared</th>
+        <th>Min Gap px</th><th>Gap Rating</th><th>Total RT ms</th><th>Hit at Lane</th>
+      </tr></thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+  <div class="advice-box">
+    <div class="cbox-title">Personalised Safety Advice</div>
+    <ul id="adv-list"></ul>
+  </div>
+  <div class="res-actions">
+    <button class="btn-r pri" onclick="restartGame()">Try Again</button>
+    <button class="btn-r" onclick="exportCSV()">Export CSV</button>
+    <button class="btn-r" onclick="goHome()">Change Profile</button>
+  </div>
+ </div>
+</div>
+
+<div class="coach" id="coach">
+  <div class="coach-title">⚠ Live Coaching</div>
+  <p id="coach-msg"></p>
+  <button class="coach-x" onclick="hideCoach()">✕</button>
+</div>
+
+<!-- SAFETY POPUP -->
+<div class="popup-overlay" id="safety-popup">
+  <div class="popup-box">
+    <h2>Before You Cross</h2>
+    <p class="popup-sub">Real Road Safety — 4 Steps Every Pedestrian Must Follow</p>
+    <div class="popup-steps">
+      <div class="popup-step" id="ps1">
+        <div class="step-icon left">👈</div>
+        <div class="step-body">
+          <h3>Step 1 — Look Left</h3>
+          <p>The first threat comes from your left. Check for vehicles approaching from that direction before you even think about stepping off the kerb.</p>
+        </div>
+      </div>
+      <div class="popup-step" id="ps2">
+        <div class="step-icon right">👉</div>
+        <div class="step-body">
+          <h3>Step 2 — Look Right</h3>
+          <p>Then check your right. On a two-way road, traffic comes from both sides. A car you missed on the right is just as dangerous.</p>
+        </div>
+      </div>
+      <div class="popup-step" id="ps3">
+        <div class="step-icon left">👈</div>
+        <div class="step-body">
+          <h3>Step 3 — Look Left Again</h3>
+          <p>Left a second time — because in the seconds you spent looking right, the situation on your left has changed. Never assume it's still clear.</p>
+        </div>
+      </div>
+      <div class="popup-step" id="ps4">
+        <div class="step-icon check">✅</div>
+        <div class="step-body">
+          <h3>Step 4 — Cross Lane by Lane</h3>
+          <p>Step into one lane at a time. Wait on the median island if needed. Keep looking both ways as you cross — traffic never stops moving.</p>
+        </div>
+      </div>
+    </div>
+    <div class="popup-footer">
+      <p class="popup-note">Hold SPACE to scan traffic. The meter fills as you look — only then can you step forward.</p>
+      <button class="btn-popup-go" onclick="closePopupAndStart()">I'm Ready — Let's Go</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────
+const DIFF = {
+  easy:   { minSpd:0.5, maxSpd:1.1, numLanes:4 },
+  medium: { minSpd:0.8, maxSpd:1.6, numLanes:5 },
+  hard:   { minSpd:1.2, maxSpd:2.2, numLanes:6 },
+};
+const TOTAL = 10;
+const CAR_W = 38, CAR_H = 19, PED_R = 9;
+const CAR_COLS = ['#c0392b','#27ae60','#2980b9','#f39c12','#8e44ad','#e67e22','#16a085','#95a5a6','#e74c3c','#1abc9c'];
+// Lane direction: even index = goes RIGHT (→), odd = goes LEFT (←)
+const DIR = (i) => i % 2 === 0 ? 1 : -1;
+
+// Look mechanic: must hold for LOOK_DURATION ms before step fires
+const LOOK_DURATION = 900; // ms
+
+// ── STATE ────────────────────────────────────────────────────────
+const S = {
+  age:null, diff:'hard',
+  trials:[], curTrial:0,
+  cars:[],
+  CW:0, CH:0, ROAD_Y:0, ROAD_H:0, LANE_H:0, FOOT_H:0,
+  numLanes:0,
+  medianLaneIdx:0,   // the special median "lane" index (not a real traffic lane)
+  laneYs:[],         // Y positions for each traffic lane
+  medianY:0,         // Y for median island centre
+  PED_X:0,
+  // per-trial
+  pedY:0,
+  // pedLane: 0..numLanes-1 = traffic lane index; numLanes = bottom footpath; -1 = median; -2 = top footpath (done)
+  pedLane:0,
+  pedMoving:false, pedTargetY:0,
+  trialActive:false, trialStart:0,
+  minGap:9999,
+  consecCol:0, consecSmall:0,
+  raf:null,
+  // look mechanic
+  looking:false,
+  lookStart:0,
+  lookProgress:0,   // 0..1
+  lookReady:false,  // filled meter = ready to step
+  spaceDown:false,
+};
+
+// ── ROAD LAYOUT ─────────────────────────────────────────────────
+// Layout (top to bottom):
+//   [top footpath]
+//   lane 0  (→)
+//   lane 1  (←)
+//   ... first half of lanes
+//   [MEDIAN ISLAND STRIP]
+//   ... second half of lanes
+//   lane n-1
+//   [bottom footpath]
+//
+// Pedestrian starts at bottom footpath, walks upward lane by lane.
+// When pedLane reaches the median we put them on the island (safe).
+// When pedLane reaches -2 they hit the top footpath = success.
+
+function calcLayout() {
+  const cv = document.getElementById('road-canvas');
+  const wrap = cv.parentElement;
+  const cfg = DIFF[S.diff];
+  S.numLanes = cfg.numLanes;
+  S.FOOT_H = 60;
+  S.LANE_H = 44;
+  const MEDIAN_H = 20;
+  S.ROAD_H = S.numLanes * S.LANE_H + MEDIAN_H;
+  const totalH = S.FOOT_H * 2 + S.ROAD_H;
+  const maxW = Math.min(wrap.clientWidth - 24, 920);
+  const maxH = Math.min(wrap.clientHeight - 16, 580);
+  const scale = Math.min(1, maxH / totalH);
+  S.CW = Math.floor(maxW);
+  S.CH = totalH;
+  S.ROAD_Y = S.FOOT_H;
+  cv.width = S.CW; cv.height = S.CH;
+  cv.style.width  = Math.floor(S.CW * scale) + 'px';
+  cv.style.height = Math.floor(S.CH * scale) + 'px';
+
+  // medianAfterLane = after how many lanes (from top) the median sits
+  // We put the median after floor(numLanes/2) lanes
+  const medAfter = Math.floor(S.numLanes / 2); // lanes above median
+
+  S.laneYs = [];
+  S.medianLaneIdx = medAfter; // "virtual" lane index for median (between real lane medAfter-1 and medAfter)
+
+  // Build Y positions: top footpath ends at ROAD_Y
+  let curY = S.ROAD_Y;
+  for (let i = 0; i < S.numLanes; i++) {
+    if (i === medAfter) {
+      // insert median
+      curY += MEDIAN_H;
+    }
+    S.laneYs.push(curY + S.LANE_H / 2);
+    curY += S.LANE_H;
+  }
+  // Median strip Y is just before lane[medAfter]
+  S.medianY = S.ROAD_Y + medAfter * S.LANE_H + MEDIAN_H / 2;
+  S.MEDIAN_H = MEDIAN_H;
+  S.medAfter = medAfter;
+
+  S.PED_X = Math.floor(S.CW / 2);
+}
+
+// ── CARS ─────────────────────────────────────────────────────────
+function makeCarsForLane(li, count) {
+  const d = DIR(li);
+  const cfg = DIFF[S.diff];
+  const cars = [];
+  for (let k = 0; k < count; k++) {
+    const spd = (cfg.minSpd + Math.random() * (cfg.maxSpd - cfg.minSpd)) * d;
+    const cw = CAR_W + Math.floor(Math.random() * 16);
+    const x = d > 0
+      ? -cw - k * (S.CW / (count + 1)) - Math.random() * 80
+      : S.CW + k * (S.CW / (count + 1)) + Math.random() * 80;
+    cars.push({
+      x, laneIdx: li,
+      y: S.laneYs[li] - CAR_H / 2,
+      spd, cw,
+      color: CAR_COLS[Math.floor(Math.random() * CAR_COLS.length)]
+    });
+  }
+  return cars;
+}
+
+function spawnCars() {
+  S.cars = [];
+  for (let i = 0; i < S.numLanes; i++) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    S.cars.push(...makeCarsForLane(i, n));
+  }
+}
+
+// ── FREEZING LOGIC ───────────────────────────────────────────────
+// Only freeze cars that have NOT yet passed the pedestrian's X.
+// "Not yet passed" means the car is still approaching from its entry side.
+// DIR>0: car comes from left, passes ped when car.x > PED_X + PED_R → freeze if car.x+cw < PED_X+PED_R (hasn't passed yet)
+// DIR<0: car comes from right, passes ped when car.x+cw < PED_X-PED_R → freeze if car.x > PED_X-PED_R (hasn't passed yet)
+function carHasNotPassed(c) {
+  const d = DIR(c.laneIdx);
+  if (d > 0) return c.x + c.cw < S.PED_X - PED_R; // still to the left of ped
+  else       return c.x > S.PED_X + PED_R;          // still to the right of ped
+}
+
+// ── LOOK MECHANIC ────────────────────────────────────────────────
+function startLook() {
+  if (!S.trialActive || S.pedMoving || S.looking) return;
+  // Can't look if already at top footpath
+  if (S.pedLane === -2) return;
+  S.looking = true;
+  S.lookStart = performance.now();
+  S.lookProgress = 0;
+  S.lookReady = false;
+  document.getElementById('look-meter-wrap').classList.add('show');
+  document.getElementById('look-fill').classList.remove('ready');
+  document.getElementById('look-label').textContent = 'SCANNING TRAFFIC...';
+}
+
+function endLook() {
+  if (!S.looking) return;
+  if (S.lookReady) {
+    // trigger step
+    stepForward();
+  }
+  S.looking = false;
+  S.lookProgress = 0;
+  document.getElementById('look-meter-wrap').classList.remove('show');
+  document.getElementById('look-fill').style.width = '0%';
+  document.getElementById('look-fill').classList.remove('ready');
+}
+
+function tickLook(now) {
+  if (!S.looking) return;
+  const elapsed = now - S.lookStart;
+  S.lookProgress = Math.min(1, elapsed / LOOK_DURATION);
+  const pct = Math.round(S.lookProgress * 100);
+  document.getElementById('look-fill').style.width = pct + '%';
+  if (S.lookProgress >= 1 && !S.lookReady) {
+    S.lookReady = true;
+    document.getElementById('look-fill').classList.add('ready');
+    document.getElementById('look-label').textContent = 'CLEAR TO STEP — RELEASE!';
+  }
+}
+
+// ── STEP ─────────────────────────────────────────────────────────
+function stepForward() {
+  if (!S.trialActive || S.pedMoving) return;
+
+  // pedLane semantics:
+  //   numLanes   = bottom footpath (start)
+  //   0..numLanes-1 = traffic lanes (0=top, numLanes-1=bottom)
+  //   -1         = median island
+  //   -2         = top footpath (finished)
+
+  if (S.pedLane === -2) { finishSafe(); return; }
+
+  let nextLane, nextY;
+
+  if (S.pedLane === S.numLanes) {
+    // bottom footpath → enter the bottom-most traffic lane
+    nextLane = S.numLanes - 1;
+    nextY = S.laneYs[S.numLanes - 1];
+  } else if (S.pedLane > S.medAfter) {
+    // still in lower half, move up one lane
+    nextLane = S.pedLane - 1;
+    nextY = S.laneYs[nextLane];
+  } else if (S.pedLane === S.medAfter) {
+    // reached the top of lower half → step onto median island
+    nextLane = -1;
+    nextY = S.medianY;
+  } else if (S.pedLane === -1) {
+    // on median → enter the top-most lane of the upper half
+    nextLane = S.medAfter - 1;
+    nextY = S.laneYs[S.medAfter - 1];
+  } else if (S.pedLane > 0) {
+    // in upper half, move up
+    nextLane = S.pedLane - 1;
+    nextY = S.laneYs[nextLane];
+  } else {
+    // pedLane === 0, top-most traffic lane → step to top footpath
+    nextLane = -2;
+    nextY = S.ROAD_Y - S.FOOT_H / 2;
+  }
+
+  const gap = nextLane >= 0 && nextLane < S.numLanes ? gapAt(S.PED_X, nextLane) : 999;
+  if (gap < S.minGap) S.minGap = gap;
+
+  const rt = Math.round(performance.now() - S.trialStart);
+  S.pedLane = nextLane;
+  S.pedTargetY = nextY;
+  S.pedMoving = true;
+
+  let posLabel = 'START';
+  if (nextLane === -2) posLabel = 'TOP';
+  else if (nextLane === -1) posLabel = 'MEDIAN';
+  else posLabel = `L${nextLane + 1}/${S.numLanes}`;
+  document.getElementById('h-lane').textContent = posLabel;
+  document.getElementById('h-rt').textContent = rt;
+}
+
+// ── GAP ──────────────────────────────────────────────────────────
+function gapAt(px, li) {
+  const lc = S.cars.filter(c => c.laneIdx === li);
+  if (!lc.length) return 999;
+  let min = 999;
+  for (const c of lc) {
+    const mid = c.x + c.cw / 2;
+    const d = Math.abs(px - mid) - c.cw / 2;
+    if (d < min) min = Math.max(0, d);
+  }
+  return min;
+}
+
+// ── COLLISION ─────────────────────────────────────────────────────
+function hitTest() {
+  // No collision on footpaths or median island
+  if (S.pedLane < 0 || S.pedLane >= S.numLanes) return false;
+  const py = S.pedY, px = S.PED_X;
+  for (const c of S.cars) {
+    if (c.laneIdx !== S.pedLane) continue;
+    if (px + PED_R > c.x && px - PED_R < c.x + c.cw &&
+        py + PED_R > c.y && py - PED_R < c.y + CAR_H) return true;
+  }
+  return false;
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────
+function loop() {
+  const now = performance.now();
+  tickLook(now);
+
+  // Move cars
+  for (const c of S.cars) {
+    // Freeze logic: only freeze if car hasn't passed ped AND ped is stationary in that lane
+    const pedStationary = !S.pedMoving && S.pedLane >= 0 && S.pedLane < S.numLanes;
+    const shouldFreeze = pedStationary && c.laneIdx === S.pedLane && carHasNotPassed(c);
+    if (!shouldFreeze) {
+      c.x += c.spd;
+      if (c.spd > 0 && c.x > S.CW + 10)  { c.x = -c.cw - Math.random() * 200; }
+      else if (c.spd < 0 && c.x + c.cw < -10) { c.x = S.CW + Math.random() * 200; }
+    }
+  }
+
+  // Animate pedestrian
+  if (S.pedMoving) {
+    const dy = S.pedTargetY - S.pedY;
+    S.pedY += Math.sign(dy) * Math.min(Math.abs(dy), 4);
+    if (Math.abs(S.pedTargetY - S.pedY) < 3) {
+      S.pedY = S.pedTargetY;
+      S.pedMoving = false;
+      if (S.pedLane === -2) { finishSafe(); return; }
+      if (S.pedLane === -1) {
+        setInst('MEDIAN ISLAND — safe zone. Hold SPACE to look right, then cross second half.');
+      } else if (S.pedLane >= 0) {
+        setInst(`Lane ${S.pedLane + 1}/${S.numLanes} — hold SPACE to scan then step forward`);
+      }
+    }
+    if (hitTest()) { finishHit(); return; }
+  } else {
+    if (hitTest()) { finishHit(); return; }
+  }
+
+  draw();
+  if (S.trialActive) S.raf = requestAnimationFrame(loop);
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────
+function draw() {
+  const cv = document.getElementById('road-canvas');
+  const cx = cv.getContext('2d');
+  const CW = S.CW, CH = S.CH;
+  cx.clearRect(0, 0, CW, CH);
+
+  // footpaths
+  cx.fillStyle = '#c8bfa8';
+  cx.fillRect(0, 0, CW, S.ROAD_Y);
+  cx.fillRect(0, S.ROAD_Y + S.ROAD_H, CW, S.FOOT_H);
+  // footpath texture
+  cx.fillStyle = 'rgba(0,0,0,0.07)';
+  for (let tx = 10; tx < CW; tx += 20) {
+    for (let ty = 5; ty < S.ROAD_Y; ty += 20) cx.fillRect(tx, ty, 3, 3);
+    for (let ty = S.ROAD_Y + S.ROAD_H + 5; ty < CH; ty += 20) cx.fillRect(tx, ty, 3, 3);
+  }
+  // kerb
+  cx.fillStyle = '#fff';
+  cx.fillRect(0, S.ROAD_Y - 2, CW, 2);
+  cx.fillRect(0, S.ROAD_Y + S.ROAD_H, CW, 2);
+
+  // road background
+  cx.fillStyle = '#1e2128';
+  cx.fillRect(0, S.ROAD_Y, CW, S.ROAD_H);
+
+  // Draw median island strip
+  const medTop = S.ROAD_Y + S.medAfter * S.LANE_H;
+  cx.fillStyle = '#2a2400';
+  cx.fillRect(0, medTop, CW, S.MEDIAN_H);
+  // hatching
+  cx.strokeStyle = 'rgba(245,197,24,0.35)';
+  cx.lineWidth = 1;
+  cx.setLineDash([8, 8]);
+  for (let hx = -S.MEDIAN_H; hx < CW + S.MEDIAN_H; hx += 14) {
+    cx.beginPath();
+    cx.moveTo(hx, medTop);
+    cx.lineTo(hx + S.MEDIAN_H, medTop + S.MEDIAN_H);
+    cx.stroke();
+  }
+  cx.setLineDash([]);
+  // solid border lines
+  cx.strokeStyle = '#f5c518';
+  cx.lineWidth = 1.5;
+  cx.beginPath(); cx.moveTo(0, medTop); cx.lineTo(CW, medTop); cx.stroke();
+  cx.beginPath(); cx.moveTo(0, medTop + S.MEDIAN_H); cx.lineTo(CW, medTop + S.MEDIAN_H); cx.stroke();
+  // label
+  cx.fillStyle = 'rgba(245,197,24,0.8)';
+  cx.font = 'bold 8px DM Mono';
+  cx.textAlign = 'center';
+  cx.fillText('◀ MEDIAN ISLAND — SAFE ZONE ▶', CW / 2, medTop + S.MEDIAN_H / 2 + 3);
+  cx.textAlign = 'left';
+
+  // Lane dividers (skip where median is)
+  for (let i = 1; i < S.numLanes; i++) {
+    const ly = S.laneYs[i] - S.LANE_H / 2;
+    // If this gap is the median gap, skip (already drawn)
+    if (i === S.medAfter) continue;
+    cx.strokeStyle = 'rgba(255,255,255,0.15)';
+    cx.lineWidth = 1.5;
+    cx.setLineDash([20, 14]);
+    cx.beginPath(); cx.moveTo(0, ly); cx.lineTo(CW, ly); cx.stroke();
+    cx.setLineDash([]);
+  }
+
+  // Direction arrows per lane
+  cx.fillStyle = 'rgba(255,255,255,0.06)';
+  cx.font = '11px DM Mono';
+  for (let i = 0; i < S.numLanes; i++) {
+    const arrow = DIR(i) > 0 ? '→' : '←';
+    for (let ax = 80; ax < CW - 80; ax += 110)
+      cx.fillText(arrow, ax, S.laneYs[i] + 4);
+  }
+
+  // Gap highlight: current lane + next lane
+  const curLane  = (S.pedLane >= 0 && S.pedLane < S.numLanes) ? S.pedLane : -1;
+  let nextLaneIdx = -1;
+  if (S.pedLane === S.numLanes) nextLaneIdx = S.numLanes - 1;
+  else if (S.pedLane > S.medAfter) nextLaneIdx = S.pedLane - 1;
+  else if (S.pedLane === -1) nextLaneIdx = S.medAfter - 1;
+  else if (S.pedLane >= 0 && S.pedLane < S.numLanes) nextLaneIdx = S.pedLane - 1;
+
+  const toHighlight = [];
+  if (curLane >= 0) toHighlight.push({ li: curLane, isCur: true });
+  if (nextLaneIdx >= 0 && nextLaneIdx < S.numLanes && nextLaneIdx !== curLane)
+    toHighlight.push({ li: nextLaneIdx, isCur: false });
+
+  for (const { li, isCur } of toHighlight) {
+    const g = gapAt(S.PED_X, li);
+    const gc = g > 70 ? '#1a9e5c' : g > 35 ? '#e8732a' : '#d93025';
+    cx.fillStyle = gc + (isCur ? '14' : '28');
+    cx.fillRect(0, S.laneYs[li] - S.LANE_H / 2, CW, S.LANE_H);
+    cx.fillStyle = gc;
+    cx.font = 'bold 9px DM Mono';
+    cx.textAlign = 'right';
+    cx.fillText(isCur ? '⏸ PAUSED  GAP:' + Math.round(g) + 'px' : 'NEXT: ' + Math.round(g) + 'px', CW - 10, S.laneYs[li] + 4);
+    cx.textAlign = 'left';
+  }
+
+  // Highlight median island when ped is on it
+  if (S.pedLane === -1) {
+    cx.fillStyle = 'rgba(26,158,92,0.22)';
+    cx.fillRect(0, medTop, CW, S.MEDIAN_H);
+  }
+
+  // Zebra strip at ped X
+  const zx = S.PED_X - 14;
+  for (let zi = 0; zi < Math.ceil(S.ROAD_H / 12); zi++) {
+    cx.fillStyle = zi % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent';
+    cx.fillRect(zx, S.ROAD_Y + zi * 12, 28, 12);
+  }
+
+  // Cars (top-down)
+  for (const c of S.cars) {
+    const d = DIR(c.laneIdx);
+    cx.fillStyle = 'rgba(0,0,0,0.3)';
+    cx.fillRect(c.x + 2, c.y + 4, c.cw, CAR_H - 5);
+    cx.fillStyle = c.color;
+    cx.fillRect(c.x, c.y, c.cw, CAR_H);
+    cx.fillStyle = 'rgba(0,0,0,0.28)';
+    cx.fillRect(c.x + c.cw * .22, c.y + 3, c.cw * .56, CAR_H - 6);
+    cx.fillStyle = d > 0 ? '#fffaaa' : '#ff4444';
+    const lx = d > 0 ? c.x + c.cw - 3 : c.x;
+    cx.fillRect(lx, c.y + 2, 3, 4);
+    cx.fillRect(lx, c.y + CAR_H - 6, 3, 4);
+    // dim cars that have already passed the ped (visual cue)
+    if (S.pedLane >= 0 && S.pedLane < S.numLanes && c.laneIdx === S.pedLane && !carHasNotPassed(c)) {
+      cx.fillStyle = 'rgba(0,0,0,0.35)';
+      cx.fillRect(c.x, c.y, c.cw, CAR_H);
+    }
+  }
+
+  // Pedestrian
+  const px = S.PED_X, py = S.pedY;
+  // shadow
+  cx.fillStyle = 'rgba(0,0,0,0.25)';
+  cx.beginPath(); cx.ellipse(px + 2, py + 4, PED_R * .9, PED_R * .4, 0, 0, Math.PI * 2); cx.fill();
+  // body
+  cx.fillStyle = S.pedLane === -1 ? '#00ff88' : '#f5c518'; // green on median
+  cx.beginPath(); cx.arc(px, py, PED_R, 0, Math.PI * 2); cx.fill();
+  cx.strokeStyle = '#0d0d0d'; cx.lineWidth = 1.5;
+  cx.beginPath(); cx.arc(px, py, PED_R, 0, Math.PI * 2); cx.stroke();
+  cx.fillStyle = '#0d0d0d';
+  cx.beginPath(); cx.arc(px, py, 2.5, 0, Math.PI * 2); cx.fill();
+
+  // look scan animation when looking
+  if (S.looking) {
+    const scanAngle = S.lookProgress * Math.PI * 2;
+    cx.strokeStyle = S.lookReady ? 'rgba(26,158,92,0.7)' : 'rgba(245,197,24,0.6)';
+    cx.lineWidth = 2.5;
+    cx.beginPath();
+    cx.arc(px, py, PED_R + 8 + S.lookProgress * 16, -Math.PI / 2, -Math.PI / 2 + scanAngle);
+    cx.stroke();
+  }
+
+  // label
+  cx.fillStyle = 'rgba(245,197,24,0.7)';
+  cx.font = 'bold 8px DM Mono';
+  cx.textAlign = 'center';
+  cx.fillText('YOU', px, py - PED_R - 4);
+  cx.textAlign = 'left';
+}
+
+// ── FINISH ───────────────────────────────────────────────────────
+function finishSafe() {
+  cancelAnimationFrame(S.raf); S.trialActive = false;
+  const rt = Math.round(performance.now() - S.trialStart);
+  const g = S.minGap; const gr = g > 70 ? 'SAFE' : g > 35 ? 'RISKY' : 'DANGEROUS';
+  recordTrial('safe', rt, g, gr);
+}
+function finishHit() {
+  cancelAnimationFrame(S.raf); S.trialActive = false;
+  const rt = Math.round(performance.now() - S.trialStart);
+  const g = S.minGap < 9999 ? S.minGap : 0;
+  const gr = g > 70 ? 'SAFE' : g > 35 ? 'RISKY' : 'DANGEROUS';
+  recordTrial('collision', rt, g, gr);
+}
+
+function recordTrial(outcome, rt, gap, gr) {
+  const lanesCleared = S.numLanes - Math.max(0, S.pedLane < 0 ? 0 : S.pedLane);
+  S.trials.push({ n: S.curTrial + 1, outcome, lanesCleared, gap: Math.round(gap), gr, rt, hitLane: outcome === 'collision' ? (S.pedLane >= 0 ? S.pedLane + 1 : 'median') : '—' });
+  const safes = S.trials.filter(t => t.outcome === 'safe').length;
+  const cols = S.trials.filter(t => t.outcome === 'collision').length;
+  document.getElementById('h-safe').textContent = safes;
+  document.getElementById('h-col').textContent = cols;
+  document.getElementById('h-rt').textContent = rt;
+  setDot(S.curTrial, outcome);
+
+  if (outcome === 'collision') {
+    S.consecCol++; S.consecSmall = 0;
+    if (S.consecCol >= 2) showCoach(`${S.consecCol} collisions in a row — wait for the gap to show GREEN before stepping forward.`);
+  } else {
+    S.consecCol = 0;
+    if (gr !== 'SAFE') S.consecSmall++; else S.consecSmall = 0;
+    if (S.consecSmall >= 2) showCoach('Try waiting for a wider gap — use the median island to split your crossing into two safer decisions.');
+  }
+
+  showFlash(outcome, gr, rt);
+  document.getElementById('btn-cross').disabled = true;
+  S.curTrial++;
+  setTimeout(() => {
+    hideFlash();
+    if (S.curTrial < TOTAL) setTimeout(launchTrial, 350); else setTimeout(endGame, 350);
+  }, 2100);
+}
+
+function showFlash(o, gr, rt) {
+  const el = document.getElementById('flash'), fw = document.getElementById('flash-word'), fs = document.getElementById('flash-sub');
+  el.className = 'flash show ' + (o === 'safe' ? 'ok' : 'hit');
+  fw.textContent = o === 'safe' ? '✓ CROSSED' : '✗ COLLISION';
+  fs.textContent = 'Gap: ' + gr + '  ·  Time: ' + rt + 'ms';
+}
+function hideFlash() { document.getElementById('flash').classList.remove('show'); }
+function setInst(t) { document.getElementById('inst').textContent = t; }
+
+// ── COACHING ─────────────────────────────────────────────────────
+let cTimer = null;
+function showCoach(m) { clearTimeout(cTimer); document.getElementById('coach-msg').textContent = m; document.getElementById('coach').classList.add('show'); cTimer = setTimeout(hideCoach, 7000); }
+function hideCoach() { document.getElementById('coach').classList.remove('show'); }
+
+// ── POPUP ─────────────────────────────────────────────────────────
+function showSafetyPopup() {
+  const overlay = document.getElementById('safety-popup');
+  overlay.classList.add('show');
+  ['ps1', 'ps2', 'ps3', 'ps4'].forEach((id, i) => {
+    setTimeout(() => document.getElementById(id).classList.add('visible'), 300 + i * 220);
+  });
+}
+function closePopupAndStart() {
+  document.getElementById('safety-popup').classList.remove('show');
+  ['ps1', 'ps2', 'ps3', 'ps4'].forEach(id => document.getElementById(id).classList.remove('visible'));
+  _launchGame();
+}
+
+// ── SCREEN / GAME INIT ────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => { s.style.display = 'none'; s.classList.remove('active'); });
+  const el = document.getElementById(id);
+  el.style.display = 'flex'; el.classList.add('active');
+}
+
+function pick(type, btn) {
+  const sel = type === 'age' ? '#age-chips button' : '#diff-chips button';
+  document.querySelectorAll(sel).forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  if (type === 'age') S.age = btn.dataset.v; else S.diff = btn.dataset.v;
+  document.getElementById('btn-go').disabled = !S.age;
+}
+
+function startGame() { showSafetyPopup(); }
+
+function _launchGame() {
+  S.trials = []; S.curTrial = 0; S.consecCol = 0; S.consecSmall = 0;
+  buildDots(); show('screen-game');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    calcLayout();
+    setTimeout(launchTrial, 200);
+  }));
+}
+
+function restartGame() {
+  S.trials = []; S.curTrial = 0; S.consecCol = 0; S.consecSmall = 0;
+  buildDots(); show('screen-game');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    calcLayout();
+    setTimeout(launchTrial, 200);
+  }));
+}
+
+function buildDots() {
+  const el = document.getElementById('dot-row'); el.innerHTML = '';
+  for (let i = 0; i < TOTAL; i++) { const d = document.createElement('div'); d.className = 'dot'; d.id = 'dot' + i; el.appendChild(d); }
+}
+function setDot(i, c) { const d = document.getElementById('dot' + i); if (d) d.className = 'dot ' + c; }
+
+function launchTrial() {
+  if (S.curTrial >= TOTAL) { endGame(); return; }
+  setDot(S.curTrial, 'cur');
+  document.getElementById('h-trial').textContent = `${S.curTrial + 1}/10`;
+  S.pedLane = S.numLanes; // bottom footpath
+  S.pedY = S.ROAD_Y + S.ROAD_H + S.FOOT_H / 2;
+  S.pedMoving = false; S.minGap = 9999; S.trialActive = true;
+  S.trialStart = performance.now();
+  S.looking = false; S.lookProgress = 0; S.lookReady = false;
+  spawnCars();
+  document.getElementById('btn-cross').disabled = false;
+  document.getElementById('h-lane').textContent = 'START';
+  setInst('Hold SPACE (or button) to scan traffic, then release to step');
+  hideFlash();
+  if (S.raf) cancelAnimationFrame(S.raf);
+  loop();
+}
+
+// ── RESULTS ───────────────────────────────────────────────────────
+function endGame() { show('screen-results'); buildResults(); }
+
+function buildResults() {
+  const T = S.trials;
+  const safes = T.filter(t => t.outcome === 'safe').length;
+  const cols = T.filter(t => t.outcome === 'collision').length;
+  const avgRT = Math.round(T.reduce((a, t) => a + t.rt, 0) / T.length);
+  const gapped = T.filter(t => t.gap > 0);
+  const avgGap = gapped.length ? Math.round(gapped.reduce((a, t) => a + t.gap, 0) / gapped.length) : 0;
+  const colPct = Math.round(cols / T.length * 100);
+  const dangerN = T.filter(t => t.gr === 'DANGEROUS').length;
+  const riskyN = T.filter(t => t.gr === 'RISKY').length;
+
+  let risk = colPct * .50 + (dangerN / T.length) * 28 + (riskyN / T.length) * 12 + Math.min(avgRT / 12000 * 10, 10);
+  risk = Math.min(100, Math.round(risk));
+
+  let lv, lc, vt, advice;
+  if (risk < 28) {
+    lv = 'LOW RISK'; lc = '#1a9e5c';
+    vt = `Strong road-reading skills. ${colPct}% collision rate and average reaction of ${avgRT}ms. You waited for genuine gaps and used the median island effectively.`;
+    advice = ['Excellent gap selection — keep waiting for the green indicator before each lane.', 'Share this technique with younger or elderly family members crossing busy roads.', 'Try a harder difficulty to further test your judgement under faster traffic.'];
+  } else if (risk < 60) {
+    lv = 'MODERATE RISK'; lc = '#e8732a';
+    vt = `Reasonable awareness with room to improve. ${dangerN + riskyN} risky gap choices made across 10 trials. Average reaction time: ${avgRT}ms.`;
+    advice = [`${dangerN} dangerous lane entries — a vehicle at 40 km/h covers 11 metres per second.`, 'Always use the median island to break the crossing into two separate decisions.', 'Wait until both sides of the next lane show clear space before stepping forward.'];
+  } else {
+    lv = 'HIGH RISK'; lc = '#d93025';
+    vt = `Warning: ${colPct}% collision rate indicates poor gap judgement. ${dangerN} dangerous entries recorded. Serious improvement needed before crossing multi-lane roads.`;
+    advice = [`NEVER cross without a signal or zebra crossing on roads with ${S.numLanes}+ lanes.`, `${dangerN} dangerous choices suggest you are underestimating vehicle approach speed.`, 'Always use the median island as a mandatory pause — never rush all lanes at once.', `At ${avgRT}ms average reaction, you are making decisions under real time pressure — reduce distractions.`];
+  }
+
+  document.getElementById('res-meta').innerHTML = `Profile: ${S.age} &nbsp;·&nbsp; Difficulty: ${S.diff} &nbsp;·&nbsp; Lanes: ${S.numLanes} &nbsp;·&nbsp; 10 trials`;
+  document.getElementById('r-safe').textContent = safes + '/10';
+  document.getElementById('r-col').textContent = colPct + '%';
+  document.getElementById('r-rt').textContent = avgRT;
+  document.getElementById('r-gap').textContent = avgGap;
+
+  const arc = document.getElementById('ring-arc');
+  arc.style.stroke = lc;
+  setTimeout(() => { arc.style.strokeDashoffset = 402 - (risk / 100) * 402; }, 200);
+  document.getElementById('ring-n').textContent = risk;
+  document.getElementById('ring-n').style.color = lc;
+  document.getElementById('v-level').textContent = lv;
+  document.getElementById('v-level').style.color = lc;
+  document.getElementById('v-text').textContent = vt;
+
+  const BARS = [
+    { l: 'Safe Rate', v: Math.round(safes / T.length * 100), c: '#1a9e5c' },
+    { l: 'Wide Gaps', v: Math.round(T.filter(t => t.gap > 70).length / T.length * 100), c: '#2a6ee8' },
+    { l: 'Quick RT', v: Math.round(T.filter(t => t.rt < 3000).length / T.length * 100), c: '#f5c518' },
+    { l: 'Dangerous', v: Math.round(dangerN / T.length * 100), c: '#d93025' },
+  ];
+  document.getElementById('bchart').innerHTML = BARS.map(b =>
+    `<div class="brow"><div class="blbl">${b.l}</div><div class="btrack"><div class="bfill" style="width:0%;background:${b.c}" data-t="${b.v}"><span>${b.v}%</span></div></div></div>`
+  ).join('');
+  setTimeout(() => document.querySelectorAll('.bfill').forEach(e => e.style.width = e.dataset.t + '%'), 300);
+
+  const mx = Math.max(...T.map(t => t.rt), 1);
+  document.getElementById('tline').innerHTML = T.map((t, i) => {
+    const p = Math.round(t.rt / mx * 100), col = t.outcome === 'safe' ? '#1a9e5c' : '#d93025';
+    return `<div class="trow"><div class="tnum">T${i + 1}</div><div class="ttrack"><div class="tbar" style="width:0%;background:${col}" data-t="${p}"></div></div><div class="tval" style="color:${col}">${t.rt}ms</div></div>`;
+  }).join('');
+  setTimeout(() => document.querySelectorAll('.tbar').forEach(e => e.style.width = e.dataset.t + '%'), 400);
+
+  document.getElementById('tbl-body').innerHTML = T.map(t =>
+    `<tr><td>${t.n}</td><td class="${t.outcome === 'safe' ? 'td-safe' : 'td-col'}">${t.outcome.toUpperCase()}</td><td>${t.lanesCleared}</td><td>${t.gap}</td><td class="${t.gr === 'SAFE' ? 'td-safe' : t.gr === 'RISKY' ? 'td-warn' : 'td-dk'}">${t.gr}</td><td>${t.rt}</td><td>${t.hitLane}</td></tr>`
+  ).join('');
+  document.getElementById('adv-list').innerHTML = advice.map(a => `<li>${a}</li>`).join('');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────
+function exportCSV() {
+  let csv = 'Trial,Outcome,LanesCleared,MinGap_px,GapRating,TotalRT_ms,HitAtLane\n';
+  S.trials.forEach(t => csv += `${t.n},${t.outcome},${t.lanesCleared},${t.gap},${t.gr},${t.rt},${t.hitLane}\n`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `crowdcross_${S.age}_${S.diff}.csv`;
+  a.click();
+}
+function goHome() { show('screen-start'); }
+
+// ── KEYBOARD ─────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.repeat) {
+    e.preventDefault();
+    if (document.getElementById('screen-game').classList.contains('active')) {
+      S.spaceDown = true;
+      startLook();
+    }
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (S.spaceDown) { S.spaceDown = false; endLook(); }
+  }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────
+show('screen-start');
+</script>
+</body>
+</html>
